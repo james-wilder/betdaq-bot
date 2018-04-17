@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/james-wilder/betdaq-bot/recorder"
 	"github.com/james-wilder/betdaq/client"
 	"github.com/james-wilder/betdaq/config"
 	"github.com/james-wilder/betdaq/model"
+	"sync"
 )
 
 const configFilename = "config.json"
@@ -22,6 +24,7 @@ func main() {
 
 	c := betdaq.NewClient(conf.Username, conf.Password)
 
+	// getOddsLadder(c)
 	getEventSubTreeNoSelections(c, 100004) // Horse Racing
 }
 
@@ -55,18 +58,24 @@ func getEventSubTreeNoSelections(c *betdaq.BetdaqClient, id int64) *model.GetEve
 		panic("Couldn't do GetEventSubTreeNoSelections")
 	}
 
-	traverseEvents(getEventSubTreeNoSelections.GetEventSubTreeNoSelectionsResult.EventClassifiers, "")
+	startRecorders(c, getEventSubTreeNoSelections.GetEventSubTreeNoSelectionsResult.EventClassifiers)
 
 	return getEventSubTreeNoSelections
 }
 
-func traverseEvents(eventClassifiers []model.EventClassifierType, indent string) {
+func startRecorders(c *betdaq.BetdaqClient, eventClassifiers []model.EventClassifierType) {
+	var wg sync.WaitGroup
+
 	for _, eventClassifier := range eventClassifiers {
-		fmt.Println(indent+"Event", eventClassifier.Id, eventClassifier.Name)
+		fmt.Println("Event", eventClassifier.Id, eventClassifier.Name)
 		for _, marketType := range eventClassifier.Markets {
-			fmt.Println(indent, marketType.Id, marketType.Name, marketType.Type)
+			fmt.Println("  Market", marketType.Id, marketType.Name, marketType.Type, marketType.StartTime)
+
+			wg.Add(1)
+			go recorder.Recorder(c, marketType, wg)
 		}
-		//fmt.Printf(indent+"Has %d sub types\n", len(eventClassifier.EventClassifiers))
-		traverseEvents(eventClassifier.EventClassifiers, indent+"  ")
+		startRecorders(c, eventClassifier.EventClassifiers)
 	}
+
+	wg.Wait()
 }
