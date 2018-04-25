@@ -3,12 +3,12 @@ package main
 import (
 	"fmt"
 	"log"
+	"sync"
 
 	"github.com/james-wilder/betdaq-bot/recorder"
 	"github.com/james-wilder/betdaq/client"
 	"github.com/james-wilder/betdaq/config"
 	"github.com/james-wilder/betdaq/model"
-	"sync"
 )
 
 const configFilename = "config.json"
@@ -68,11 +68,12 @@ func startRecorders(c *betdaq.BetdaqClient, eventClassifiers []model.EventClassi
 
 	for _, eventClassifier := range eventClassifiers {
 		fmt.Println("Event", eventClassifier.Id, eventClassifier.Name)
-		for _, marketType := range eventClassifier.Markets {
-			fmt.Println("  Market", marketType.Id, marketType.Name, marketType.Type, marketType.StartTime)
+
+		for _, market := range eventClassifier.Markets {
+			fmt.Println("  Market", market.Id, market.Name, market.Type, market.StartTime)
 
 			wg.Add(1)
-			go recorder.Recorder(c, marketType, wg)
+			go recorder.Recorder(c, eventClassifier, market, wg)
 		}
 		startRecorders(c, eventClassifier.EventClassifiers)
 	}
