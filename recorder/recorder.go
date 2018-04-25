@@ -1,15 +1,15 @@
 package recorder
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"sync"
 	"time"
 
-	"encoding/json"
 	"github.com/james-wilder/betdaq/client"
 	"github.com/james-wilder/betdaq/model"
-	"io/ioutil"
 )
 
 // Example from API:
@@ -26,38 +26,40 @@ func Recorder(c *betdaq.BetdaqClient, event model.EventClassifierType, market mo
 	defer wg.Done()
 
 	if market.Type != 1 {
-		log.Println("Not a win market, dropping market", market.Id)
+		//log.Println("Not a win market, dropping market", market.Id, event.Name)
 		return
 	}
 
 	if market.NumberOfWinningSelections != 1 {
-		log.Println("Winning selections not 1, dropping market", market.Id)
+		log.Println("Winning selections not 1, dropping market", market.Id, event.Name)
 		return
 	}
 
-	t, err := time.Parse(TimeFormat, market.StartTime)
+	startTime, err := time.Parse(TimeFormat, market.StartTime)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	duration := time.Until(t)
-	if duration < time.Minute*15 {
-		fmt.Println("Skip market - not got > 15 minutes til start", market.Id)
+	fifteenBeforeStart := startTime.Add(-15 * time.Minute)
+	duration := time.Until(fifteenBeforeStart)
+	if duration < 0 {
+		fmt.Println("Skip market - not got > 15 minutes til start", market.Id, event.Name)
 		return
 	}
 
-	// Wait for logging of exiting markets to finish
-	time.Sleep(1 * time.Second)
-	fmt.Println("Recording market", market.Id, event.Name)
-
-	fmt.Println("Do something in", duration)
+	// TODO: order by start time more sensibly
+	// believe it or not this is enough to order by start time
+	time.Sleep(duration / 1000000)
+	fmt.Println("Recording market in", duration, market.Id, event.Name)
 
 	time.Sleep(duration)
 
+	fmt.Println("Waking up...", market.Id, event.Name)
+
 	var prices []*model.GetPricesResponse
-	for !time.Now().After(t) {
-		log.Println("Requesting prices", market.Id)
+	for !time.Now().After(startTime) {
+		log.Println("Requesting prices", market.Id, event.Name)
 		getPrices, err := c.GetPrices(model.GetPrices{
 			GetPricesRequest: model.GetPricesRequest{
 				MarketIds: []int64{
@@ -81,14 +83,14 @@ func Recorder(c *betdaq.BetdaqClient, event model.EventClassifierType, market mo
 		time.Sleep(1 * time.Second)
 	}
 
-	log.Println("Save historic data to disk", market.Id)
+	log.Println("Save historic data to disk", market.Id, event.Name)
 	ev := HistoricEvent{
 		Event:  &event,
 		Market: &market,
 		Prices: prices,
 	}
 
-	b, err := json.Marshal(ev)
+	b, err := json.MarshalIndent(ev, "", "  ")
 	if err != nil {
 		log.Println("JSON problem")
 		log.Println(err)

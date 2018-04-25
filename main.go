@@ -67,10 +67,10 @@ func startRecorders(c *betdaq.BetdaqClient, eventClassifiers []model.EventClassi
 	var wg sync.WaitGroup
 
 	for _, eventClassifier := range eventClassifiers {
-		fmt.Println("Event", eventClassifier.Id, eventClassifier.Name)
+		//fmt.Println("Event", eventClassifier.Id, eventClassifier.Name)
 
 		for _, market := range eventClassifier.Markets {
-			fmt.Println("  Market", market.Id, market.Name, market.Type, market.StartTime)
+			//fmt.Println("  Market", market.Id, market.Name, market.Type, market.StartTime)
 
 			wg.Add(1)
 			go recorder.Recorder(c, eventClassifier, market, wg)
