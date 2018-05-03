@@ -22,11 +22,11 @@ type HistoricEvent struct {
 	Prices []*model.GetPricesResponse
 }
 
-func Recorder(c *betdaq.BetdaqClient, event model.EventClassifierType, market model.MarketType, wg sync.WaitGroup) {
+func Recorder(c *betdaq.BetdaqClient, event model.EventClassifierType, market model.MarketType, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	if market.Type != 1 {
-		//log.Println("Not a win market, dropping market", market.Id, event.Name)
+		log.Println("Not a win market, dropping market", market.Id, event.Name)
 		return
 	}
 

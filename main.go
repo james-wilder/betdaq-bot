@@ -25,7 +25,8 @@ func main() {
 	c := betdaq.NewClient(conf.Username, conf.Password)
 
 	// getOddsLadder(c)
-	getEventSubTreeNoSelections(c, 100004) // Horse Racing
+	// getEventSubTreeNoSelections(c, 100004) // Horse Racing
+	getEventSubTreeNoSelections(c, 190538) // UK Horse Racing
 }
 
 func getOddsLadder(c *betdaq.BetdaqClient) *model.GetOddsLadderResponse {
@@ -58,25 +59,26 @@ func getEventSubTreeNoSelections(c *betdaq.BetdaqClient, id int64) *model.GetEve
 		panic("Couldn't do GetEventSubTreeNoSelections")
 	}
 
-	startRecorders(c, getEventSubTreeNoSelections.GetEventSubTreeNoSelectionsResult.EventClassifiers)
+	var wg sync.WaitGroup
+
+	startRecorders(c, getEventSubTreeNoSelections.GetEventSubTreeNoSelectionsResult.EventClassifiers, &wg)
+
+	wg.Wait()
 
 	return getEventSubTreeNoSelections
 }
 
-func startRecorders(c *betdaq.BetdaqClient, eventClassifiers []model.EventClassifierType) {
-	var wg sync.WaitGroup
-
+func startRecorders(c *betdaq.BetdaqClient, eventClassifiers []model.EventClassifierType, wg *sync.WaitGroup) {
 	for _, eventClassifier := range eventClassifiers {
-		//fmt.Println("Event", eventClassifier.Id, eventClassifier.Name)
+		fmt.Println("Event", eventClassifier.Id, eventClassifier.Name)
 
-		for _, market := range eventClassifier.Markets {
-			//fmt.Println("  Market", market.Id, market.Name, market.Type, market.StartTime)
+		for i, market := range eventClassifier.Markets {
+			fmt.Println("  Market", market.Id, market.Name, market.Type, market.StartTime)
 
 			wg.Add(1)
-			go recorder.Recorder(c, eventClassifier, market, wg)
+			
+			go recorder.Recorder(c, eventClassifier, eventClassifier.Markets[i], wg)
 		}
-		startRecorders(c, eventClassifier.EventClassifiers)
+		startRecorders(c, eventClassifier.EventClassifiers, wg)
 	}
-
-	wg.Wait()
 }
